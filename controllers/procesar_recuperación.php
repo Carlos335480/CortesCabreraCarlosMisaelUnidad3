@@ -20,17 +20,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
+        $mail->Host       = getenv('SMTP_HOST');
         $mail->SMTPAuth   = true;
 
-        $mail->Username   = '23040067@alumno.utc.edu.mx';      
-        $mail->Password   = 'gagu cvxs neth wpot';          
+        $mail->Username   = getenv('SMTP_USER');      
+        $mail->Password   = getenv('SMTP_PASS');          
 
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $mail->Port       = getenv('SMTP_PORT');
 
-        $mail->setFrom('23040067@alumno.utc.edu.mx', 'Soporte');
-        $mail->addReplyTo('23040067@alumno.utc.edu.mx', 'Soporte'); 
+        $smtpUser = getenv('SMTP_USEE')
+
+        $mail->setFrom($smtpUser, 'Soporte');
+        $mail->addReplyTo($smtpUser, 'Soporte'); 
         $mail->addAddress($correo);
 
         $enlace = "http://localhost:8080/reset.php?token=$token";

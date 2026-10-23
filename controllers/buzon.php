@@ -11,7 +11,7 @@ if (!$usuario) {
     exit();
 }
 
-$correoEncargado = "encargado@gmail.com";
+$correoEncargado = getenv('ADMIN_EMAIL');
 
 if (isset($usuario['email']) && strtolower(trim($usuario['email'])) === strtolower($correoEncargado)) {
     $sql = "SELECT m.id, m.asunto, m.mensaje, m.fecha, u.name AS usuario
