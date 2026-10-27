@@ -17,7 +17,7 @@
         Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: '<?php echo htmlspecialchars($_GET['error']); ?>',
+            text: <?php echo json_encode($_GET['error'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
             showConfirmButton: false,
             confirmButtonColor: '#d33',
             timer: 3000,
@@ -35,7 +35,7 @@
         Swal.fire({
             icon: 'success',
             title: 'Éxito',
-            text: '<?php echo htmlspecialchars($_GET['exito']); ?>',
+            text: <?php echo json_encode($_GET['exito'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>,
             confirmButtonColor: '#28a745',
             timer: 3000,
             timerProgressBar: true
@@ -57,18 +57,18 @@
         <div class="grupo">
 
           <div class="input-icon">
-            <input name="email" id="email" type="email" placeholder="Correo">
+            <input name="email" id="email" type="email" placeholder="Correo" required>
             <i class="fas fa-envelope"></i>
           </div>
 
           <div class = "input-icon">
-            <input name = "password" id = "password" type = "password" placeholder = "Contraseña">
+            <input name = "password" id = "password" type = "password" placeholder = "Contraseña" required>
             <i class = "fa-solid fa-key"></i>
           </div>
           <br><br>
           <div class="input-icon" style="display: flex; justify-content: center; margin-bottom: 15px;">
             
-            <div class="g-recaptcha" data-sitekey="<?php echo getenv('RECAPTCHA_SITE_KEY'); ?>"></div>
+            <div class="g-recaptcha" data-sitekey="<?php echo htmlspecialchars(getenv('RECAPTCHA_SITE_KEY') ?: '', ENT_QUOTES, 'UTF-8'); ?>"></div>
           </div>
 
           <button type = "submit" formaction = "controllers/inicio_sesión_user.php">Iniciar Sesión</button>
