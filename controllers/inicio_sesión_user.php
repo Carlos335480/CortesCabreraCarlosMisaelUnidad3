@@ -4,7 +4,14 @@ require_once __DIR__ . "/../config/conexion.php";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
+    $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
+    $password = $_POST['password'] ?? '';
     $recaptcha_response = $_POST['g-recaptcha-response'] ?? '';
+
+    if (empty($email) || empty($password)){
+        header("Location: ../index.php?error=" . urlencode("Por favor, llena todos los campos"));
+        exit();
+    }
 
     if (empty($recaptcha_response)) {
         header("Location: ../index.php?error=" . urlencode("Por favor, confirma que no eres un robot"));
@@ -32,51 +39,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $verify   = file_get_contents($url, false, $context);
     $captcha_success = json_decode($verify, true);
 
-    if (!$captcha_success['success']) {
+    if (!$captcha_success || empty($captcha_success['success'])) {
         header("Location: ../index.php?error=" . urlencode("Error en la verificación de reCAPTCHA. Inténtalo de nuevo."));
         exit();
     }
-
-$email    = trim($_POST['email']);
-$password = trim($_POST['password']);
 
 $sql = "SELECT id, nameuser, name, email, password
         FROM usuarios
         WHERE email = ?";
 
 $params = array($email);
-
 $stmt = sqlsrv_prepare($conn, $sql, $params);
 
 if ($stmt && sqlsrv_execute($stmt)) {
  
     $usuario = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 
-    if ($usuario) {
+    if ($usuario && password_verify($password, $usuario['password'])) {
+        
+        session_regenerate_id(true);
 
-        if (password_verify($password, $usuario['password'])) {
+        unset($usuario['password']);
+        $_SESSION['usuario'] = $usuario;
 
-            $_SESSION['usuario'] = $usuario;
+        sqlsrv_free_stmt($stmt);
+        sqlsrv_close($conn);
 
-            header("Location: ../controllers/obtener_inventario.php?Inventario");
-            exit();
-        }
-
-        header("Location: ../index.php?error=Contraseña incorrecta");
+        header("Location: ../controllers/obtener_inventario.php?Inventario");
         exit();
 
     } else {
-
-        header("Location: ../index.php?error=Usuario no encontrado");
+        sqlsrv_free_stmt($stmt);
+        sqlsrv_close($conn);
+        
+        header("Location: ../index.php?error=" . urlencode("Correo o contraseña incorrectos"));
         exit();
     }
-
 } else {
-
-    die(print_r(sqlsrv_errors(), true));
+    error_log(print_r(sqlsrv_errors(), true));
+    if (isset($conn) && $conn) {
+        sqlsrv_close($conn);
+    }
+    header("Location: ../index.php?error=" . urlencode("Ocurrió un error en el servidor. Inténtalo más tarde."));
+    exit();
 }
-
-sqlsrv_free_stmt($stmt);
-sqlsrv_close($conn);
+} else {
+    header("Location: ../index.php");
+    exit();
 }
 ?>
