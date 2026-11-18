@@ -8,6 +8,8 @@ if (!empty($_SESSION['usuario'])) {
 } else {
     $nombre = "Invitado";
 }
+
+$mensajes = $mensajes ?? [];
 ?>
 
 <!DOCTYPE html>
@@ -133,7 +135,7 @@ if (!empty($_SESSION['usuario'])) {
 <body>
     <header class="menu">
     <div>
-      <span><i class="fas fa-user"></i> <?= isset($nombre) ? htmlspecialchars($nombre) : "Invitado" ?></span>
+      <span><i class="fas fa-user"></i> <?= isset($nombre) ? htmlspecialchars($nombre, ENT_QUOTES, 'UTF-8') : "Invitado" ?></span>
     </div>
     <nav>
       <a href = "../controllers/obtener_inventario.php"><i class="fa-solid fa-box"></i> Inventario</a>
@@ -148,7 +150,7 @@ if (!empty($_SESSION['usuario'])) {
     <h1>Buzón de Mensajes</h1>
 
     <div class="usuario-activo">
-      Usuario activo: <?= htmlspecialchars($usuario['name'] ?? 'Invitado') ?>
+      Usuario activo: <?= htmlspecialchars($usuario['name'] ?? 'Invitado', ENT_QUOTES, 'UTF-8') ?>
     </div>
 
     <?php if (empty($mensajes)): ?>
@@ -156,21 +158,21 @@ if (!empty($_SESSION['usuario'])) {
     <?php else: ?>
       <?php foreach ($mensajes as $m): ?>
         <div class="mensaje-card">
-          <div class="asunto"><?= htmlspecialchars($m['asunto']) ?></div>
-          <div class="mensaje"><?= nl2br(htmlspecialchars($m['mensaje'])) ?></div>
+          <div class="asunto"><?= htmlspecialchars($m['asunto'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+          <div class="mensaje"><?= nl2br(htmlspecialchars($m['mensaje'] ?? '', ENT_QUOTES, 'UTF-8')) ?></div>
           <div class="fecha">
             <?php 
             if ($m['fecha'] instanceof DateTime) {
                 echo $m['fecha']->format('d/m/Y H:i');
             } else {
-                echo htmlspecialchars($m['fecha']);
+                echo htmlspecialchars((string)($m['fecha'] ?? ''), ENT_QUOTES, 'UTF-8');
             }
             ?>
           </div>
 
           <!-- Formulario para responder -->
           <form action="../controllers/responder_mensaje.php" method="POST">
-            <input type="hidden" name="mensaje_id" value="<?= $m['id'] ?>">
+            <input type="hidden" name="mensaje_id" value="<?= htmlspecialchars((string)($m['id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
             <textarea name="respuesta" rows="3" placeholder="Escribe tu respuesta..." required></textarea>
             <button type="submit" class="btn">Responder</button>
           </form>
@@ -182,19 +184,21 @@ if (!empty($_SESSION['usuario'])) {
                       INNER JOIN usuarios u ON r.usuario_id = u.id
                       WHERE r.mensaje_id = ?
                       ORDER BY r.fecha ASC";
-          $stmtResp = sqlsrv_prepare($conn, $sqlResp, [$m['id']]);
-          sqlsrv_execute($stmtResp);
-          while ($resp = sqlsrv_fetch_array($stmtResp, SQLSRV_FETCH_ASSOC)) {
-              echo "<div class='respuesta-card'><strong>"
-                   . htmlspecialchars($resp['usuario']) . ":</strong> "
-                   . htmlspecialchars($resp['respuesta']) .
-                   " <small>";
-              if ($resp['fecha'] instanceof DateTime) {
-                  echo $resp['fecha']->format('d/m/Y H:i');
-              } else {
-                  echo htmlspecialchars($resp['fecha']);
+          $stmtResp = sqlsrv_prepare($conn, $sqlResp, [(int)$m['id']]);
+          if ($stmtResp && sqlsrv_execute($stmtResp)) {
+              while ($resp = sqlsrv_fetch_array($stmtResp, SQLSRV_FETCH_ASSOC)) {
+                  echo "<div class='respuesta-card'><strong>"
+                       . htmlspecialchars($resp['usuario'] ?? '', ENT_QUOTES, 'UTF-8') . ":</strong> "
+                       . htmlspecialchars($resp['respuesta'] ?? '', ENT_QUOTES, 'UTF-8') .
+                       " <small>";
+                  if ($resp['fecha'] instanceof DateTime) {
+                      echo $resp['fecha']->format('d/m/Y H:i');
+                  } else {
+                      echo htmlspecialchars((string)($resp['fecha'] ?? ''), ENT_QUOTES, 'UTF-8');
+                  }
+                  echo "</small></div>";
               }
-              echo "</small></div>";
+              sqlsrv_free_stmt($stmtResp);
           }
           ?>
         </div>
@@ -206,3 +210,8 @@ if (!empty($_SESSION['usuario'])) {
   </div>
 </body>
 </html>
+<?php
+if (isset($conn) && $conn) {
+    sqlsrv_close($conn);
+}
+?>

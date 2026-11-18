@@ -8,6 +8,9 @@ if (!empty($_SESSION['usuario'])) {
 } else {
     $nombre = "Invitado";
 }
+
+$marca  = $marca ?? '';
+$result = $result ?? [];
 ?>
 
 
@@ -24,12 +27,12 @@ if (!empty($_SESSION['usuario'])) {
 <body>
   <script src = "https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-  <?php if (isset($_GET['error'])): ?>
+  <?php if (isset($_GET['error']) && is_string($_GET['error'])): ?>
     <script>
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: '<?= htmlspecialchars($_GET['error']) ?>',
+        text: <?= json_encode($_GET['error'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>,
         confirmButtonColor: '#d33',
         timer: 3000,
         timerProgressBar: true
@@ -40,12 +43,12 @@ if (!empty($_SESSION['usuario'])) {
     </script>
   <?php endif; ?>
 
-  <?php if (isset($_GET['exito'])): ?>
+  <?php if (isset($_GET['exito']) && is_string($_GET['exito'])): ?>
     <script>
       Swal.fire({
         icon: 'success',
         title: 'Éxito',
-        text: '<?= htmlspecialchars($_GET['exito']) ?>',
+        text: <?= json_encode($_GET['exito'], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>,
         confirmButtonColor: '#28a745',
         timer: 3000,
         timerProgressBar: true
@@ -58,7 +61,7 @@ if (!empty($_SESSION['usuario'])) {
 
   <header class = "menu">
     <div>
-      <span><i class = "fas fa-user"></i> <?= isset($nombre) ? htmlspecialchars($nombre) : "Invitado" ?></span>
+      <span><i class = "fas fa-user"></i> <?= isset($nombre) ? htmlspecialchars($nombre, ENT_QUOTES, 'UTF-8') : "Invitado" ?></span>
     </div>
 
     <nav>
@@ -77,7 +80,7 @@ if (!empty($_SESSION['usuario'])) {
 
     <form action = "" method = "GET" class = "busqueda">
       <div class = "input-icon">
-        <input type = "text" name = "marca" placeholder = "Buscar por marca" value = "<?= htmlspecialchars($marca) ?>">
+        <input type = "text" name = "marca" placeholder = "Buscar por marca" value = "<?= htmlspecialchars($marca, ENT_QUOTES, 'UTF-8') ?>">
       </div>
       <button type = "submit"><i class = "fas fa-search"></i> Buscar</button>
     </form>
@@ -85,12 +88,12 @@ if (!empty($_SESSION['usuario'])) {
     <section class = "inventario">
       <?php foreach($result as $row): ?>
         <article class = "card">
-          <img src = "<?= $row['imagen'] ?>" alt = "<?= $row['modelo'] ?>">
+          <img src = "<?= htmlspecialchars($row['imagen'] ?? '', ENT_QUOTES, 'UTF-8') ?>" alt = "<?= htmlspecialchars($row['modelo'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
           <div class = "info">
-            <h2><i class = "fas fa-tag"></i> <?= $row['marca'] ?> <?= $row['modelo'] ?></h2>
-            <p><i class = "fas fa-ruler"></i> Talla: <?= $row['talla'] ?></p>
-            <p><i class = "fas fa-dollar-sign"></i> Precio: $<?= $row['precio'] ?></p>
-            <a href = "detalle_producto.php?id=<?= $row['id'] ?>"><i class = "fas fa-eye"></i> Ver más</a>
+            <h2><i class = "fas fa-tag"></i> <?= htmlspecialchars($row['marca'] ?? '', ENT_QUOTES, 'UTF-8') ?> <?= htmlspecialchars($row['modelo'] ?? '', ENT_QUOTES, 'UTF-8') ?></h2>
+            <p><i class = "fas fa-ruler"></i> Talla: <?= htmlspecialchars($row['talla'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
+            <p><i class = "fas fa-dollar-sign"></i> Precio: $<?= htmlspecialchars((string)($row['precio'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
+            <a href = "detalle_producto.php?id=<?= urlencode((string)($row['id'] ?? '')) ?>"><i class = "fas fa-eye"></i> Ver más</a>
           </div>
         </article>
       <?php endforeach; ?>

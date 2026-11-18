@@ -2,21 +2,27 @@
 require_once __DIR__ . "/config/conexion.php";
 
 $token = $_GET['token'] ?? '';
-
-$sql = "SELECT correo, expira FROM tokens_recuperacion WHERE token = ?";
-$stmt = sqlsrv_prepare($conn, $sql, [$token]);
-sqlsrv_execute($stmt);
-$row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-
 $valido = false;
-$correo = null;
 
-if ($row) {
-    $expira = $row['expira'];
-    if ($expira instanceof DateTime) {
-        $valido = $expira->getTimestamp() > time();
+if (is_string($token) && preg_match('/^[a-f0-9]{64}$/', $token)) {
+    $tokenHash = hash('sha256', $token);
+
+    $sql = "SELECT expira FROM tokens_recuperacion WHERE token = ?";
+    $stmt = sqlsrv_prepare($conn, $sql, [$tokenHash]);
+
+    if ($stmt && sqlsrv_execute($stmt)) {
+        $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+
+        if ($row) {
+            $expira = $row['expira'];
+            if ($expira instanceof DateTime) {
+                $valido = $expira->getTimestamp() > time();
+            } elseif (is_string($expira)) {
+                $valido = strtotime($expira) > time();
+            }
+        }
+        sqlsrv_free_stmt($stmt);
     }
-    $correo = $row['correo'];
 }
 ?>
 <!DOCTYPE html>
@@ -42,7 +48,7 @@ if ($row) {
     <h1>Restablecer Contraseña</h1>
     <?php if ($valido): ?>
       <form action="controllers/guardar_nueva.php" method="POST">
-        <input type="hidden" name="correo" value="<?= htmlspecialchars($correo) ?>">
+        <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES, 'UTF-8') ?>">
         <div class="input-icon">
           <input type="password" name="nueva" placeholder="Nueva contraseña" required>
           <i class="fas fa-lock"></i>
