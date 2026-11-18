@@ -1,10 +1,38 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once __DIR__ . "/../config/conexion.php";
 require __DIR__ . "/../vendor/autoload.php";
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+
+function obtenerEnv(string $clave, string $default = ''): string {
+    $val = getenv($clave);
+    if ($val !== false && $val !== '') {
+        return trim((string) $val);
+    }
+    if (!empty($_ENV[$clave])) {
+        return trim((string) $_ENV[$clave]);
+    }
+    if (!empty($_SERVER[$clave])) {
+        return trim((string) $_SERVER[$clave]);
+    }
+    $rutaEnv = __DIR__ . '/../.env';
+    if (file_exists($rutaEnv)) {
+        foreach (file($rutaEnv, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $linea) {
+            $linea = trim($linea);
+            if ($linea === '' || str_starts_with($linea, '#')) {
+                continue;
+            }
+            if (str_starts_with($linea, $clave . '=')) {
+                return trim(substr($linea, strlen($clave) + 1), " \t\n\r\0\x0B\"'");
+            }
+        }
+    }
+    return $default;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -63,23 +91,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $mail = new PHPMailer(true);
     try {
-        $smtpUser = getenv('SMTP_USER');
+        $smtpHost = obtenerEnv('SMTP_HOST', 'smtp.gmail.com');
+        $smtpUser = obtenerEnv('SMTP_USER');
+        $smtpPass = str_replace(' ', '', obtenerEnv('SMTP_PASS'));
+        $smtpPort = (int) obtenerEnv('SMTP_PORT', '587');
+
+        if ($smtpUser === '' || $smtpPass === '') {
+            throw new Exception("Faltan las variables SMTP_USER o SMTP_PASS en el archivo .env");
+        }
 
         $mail->isSMTP();
-        $mail->Host = getenv('SMTP_HOST');
-        $mail->SMTPAuth = true;
-        $mail->Username = $smtpUser;
-        $mail->Password = getenv('SMTP_PASS');
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = (int) getenv('SMTP_PORT');
-        $mail->CharSet = 'UTF-8';
+        $mail->Host       = $smtpHost;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $smtpUser;
+        $mail->Password   = $smtpPass;
+        $mail->SMTPSecure = ($smtpPort === 465) ? PHPMailer::ENCRYPTION_SMTPS : PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = $smtpPort;
+        $mail->CharSet    = 'UTF-8';
 
         $mail->setFrom($smtpUser, 'Soporte');
         $mail->addReplyTo($smtpUser, 'Soporte');
         $mail->addAddress($correo);
 
-        $appUrl = rtrim(getenv('APP_URL') ?: 'http://localhost:8080', '/');
-        $enlace = $appUrl . "/reset.php?token=" . urlencode($tokenPlano);
+        $appUrl = rtrim(obtenerEnv('APP_URL', 'http://localhost:8080'), '/');
+        $enlace = $appUrl . "/cambiar_contraseña.php?token=" . urlencode($tokenPlano);
         $enlaceSeguro = htmlspecialchars($enlace, ENT_QUOTES, 'UTF-8');
 
         $mail->isHTML(true);
@@ -102,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
 
     } catch (Exception $e) {
-        error_log("Error PHPMailer: " . $mail->ErrorInfo);
+        error_log("Error PHPMailer: " . $mail->ErrorInfo . " | " . $e->getMessage());
         header("Location: ../recuperar.php?error=" . urlencode("No se pudo enviar el correo de recuperación. Inténtalo más tarde."));
         exit();
     }

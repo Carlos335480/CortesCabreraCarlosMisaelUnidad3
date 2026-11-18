@@ -11,10 +11,26 @@ if (!$usuario || !isset($usuario['id'])) {
     exit();
 }
 
+// 1. Obtener ADMIN_EMAIL desde entorno o leyendo directamente el archivo .env
 $correoEncargado = trim((string) (getenv('ADMIN_EMAIL') ?: ($_ENV['ADMIN_EMAIL'] ?? $_SERVER['ADMIN_EMAIL'] ?? '')));
-$correoUsuario   = isset($usuario['email']) ? strtolower(trim((string) $usuario['email'])) : '';
 
-// Si 'email' no estaba guardado en $_SESSION['usuario'], obtenerlo de la BD por su id
+if ($correoEncargado === '' && file_exists(__DIR__ . '/../.env')) {
+    $lineasEnv = file(__DIR__ . '/../.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lineasEnv as $linea) {
+        $linea = trim($linea);
+        if ($linea === '' || str_starts_with($linea, '#')) {
+            continue;
+        }
+        if (str_starts_with($linea, 'ADMIN_EMAIL=')) {
+            $correoEncargado = trim(substr($linea, strlen('ADMIN_EMAIL=')), " \t\n\r\0\x0B\"'");
+            break;
+        }
+    }
+}
+
+// 2. Obtener el correo del usuario activo (de sesión o directo de la BD)
+$correoUsuario = isset($usuario['email']) ? strtolower(trim((string) $usuario['email'])) : '';
+
 if ($correoUsuario === '') {
     $stmtUser = sqlsrv_prepare($conn, "SELECT email FROM usuarios WHERE id = ?", [(int) $usuario['id']]);
     if ($stmtUser && sqlsrv_execute($stmtUser)) {
@@ -27,8 +43,11 @@ if ($correoUsuario === '') {
     }
 }
 
-if ($correoEncargado !== '' && $correoUsuario !== '' && hash_equals(strtolower($correoEncargado), $correoUsuario)) {
-    $sql = "SELECT m.id, m.asunto, m.mensaje, m.fecha, COALESCE(u.name, 'Usuario') AS usuario
+// 3. Si es el encargado, traer TODOS los mensajes; si es cliente, solo los suyos
+$esAdmin = ($correoEncargado !== '' && $correoUsuario !== '' && hash_equals(strtolower($correoEncargado), $correoUsuario));
+
+if ($esAdmin) {
+    $sql = "SELECT m.id, m.asunto, m.mensaje, m.fecha, COALESCE(u.name, 'Cliente') AS usuario
             FROM mensajes m
             LEFT JOIN usuarios u ON m.usuario_id = u.id
             ORDER BY m.fecha DESC";
